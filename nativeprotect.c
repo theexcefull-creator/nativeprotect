@@ -20,9 +20,10 @@
 #include <time.h>
 
 #ifdef _WIN32
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
 #pragma comment(lib, "ws2_32.lib")
@@ -98,26 +99,18 @@ static int check_debugger_windows(void) {
         if (status == 0 && debugFlags == 0) return 1;
     }
 
-    /* 4. PEB->BeingDebugged (direct read) */
-    #ifdef _WIN64
-    PPEB peb = (PPEB)__readgsqword(0x60);
-    #else
-    PPEB peb = (PPEB)__readfsdword(0x30);
-    #endif
-    if (peb && peb->BeingDebugged) return 1;
-
     return 0;
 }
+
+#else /* !_WIN32 — Linux/macOS */
 
 /* ================================================================
  *  Anti-Debug: Linux
  * ================================================================ */
 
 static int check_debugger_linux(void) {
-    /* 1. ptrace self-attach check */
     if (ptrace(PTRACE_TRACEME, 0, NULL, 0) == -1) return 1;
 
-    /* 2. /proc/self/status — TracerPid */
     FILE *f = fopen("/proc/self/status", "r");
     if (f) {
         char line[256];
@@ -129,8 +122,6 @@ static int check_debugger_linux(void) {
         }
         fclose(f);
     }
-
-    /* 3. /proc/self/syscall — check if being traced */
     return 0;
 }
 
