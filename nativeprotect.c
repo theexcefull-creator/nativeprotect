@@ -13,7 +13,7 @@
  *        -o nativeprotect.dll nativeprotect.c -lpsapi -lws2_32 -ladvapi32 -Wl,--strip-all
  */
 
-#include <jni.h
+#include <jni.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
