@@ -3,43 +3,48 @@ name: Build Native Protection
 on:
   push:
     paths:
-      - 'obfuscator/nativeprotect.c'
+      - 'nativeprotect.c'
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install MinGW
-        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
       - name: Build nativeprotect.dll
+        shell: msys2 {0}
         run: |
-          x86_64-w64-mingw32-gcc -shared -O2 -fvisibility=hidden \
-            -o nativeprotect.dll obfuscator/nativeprotect.c \
+          gcc -shared -O2 -fvisibility=hidden \
+            -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/win32" \
+            -o nativeprotect.dll nativeprotect.c \
             -lws2_32 -lpsapi -ladvapi32 -lkernel32 \
             -Wl,--strip-all -Wl,--exclude-all-symbols
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
-          name: nativeprotect-windows
+          name: nativeprotect-windows-x64
           path: nativeprotect.dll
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install JDK for headers
-        run: sudo apt-get update && sudo apt-get install -y default-jdk
+      - name: Install GCC and JDK headers
+        run: sudo apt-get update && sudo apt-get install -y gcc default-jdk
       - name: Build libnativeprotect.so
         run: |
           JDK_INC=$(dirname $(dirname $(readlink -f $(which java))))/include
           gcc -shared -fPIC -O2 -fvisibility=hidden \
             -I"$JDK_INC" -I"$JDK_INC/linux" \
-            -o libnativeprotect.so obfuscator/nativeprotect.c \
+            -o libnativeprotect.so nativeprotect.c \
             -lpthread -ldl -Wl,--strip-all
       - name: Upload SO
         uses: actions/upload-artifact@v4
         with:
-          name: nativeprotect-linux
+          name: nativeprotect-linux-x64
           path: libnativeprotect.so
