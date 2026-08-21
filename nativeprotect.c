@@ -326,31 +326,28 @@ static void crash_reverser(void) {
  *  Background protection thread
  * ================================================================ */
 
+#ifdef _WIN32
+
 static DWORD WINAPI protection_thread_win(LPVOID param) {
     (void)param;
     srand((unsigned int)time(NULL));
 
     while (g_protection_active) {
-        int sleep_ms = 3000 + (rand() % 7000); /* 3-10 seconds */
+        int sleep_ms = 3000 + (rand() % 7000);
         Sleep(sleep_ms);
 
         if (!g_protection_active) break;
 
-        /* Check 1: Anti-debug */
         if (check_debugger_windows()) {
             g_dump_detected = 1;
             crash_reverser();
             return 1;
         }
-
-        /* Check 2: Module whitelist */
         if (check_modules_whitelist()) {
             g_dump_detected = 1;
             crash_reverser();
             return 2;
         }
-
-        /* Check 3: JDWP ports (less frequent) */
         if ((rand() % 3) == 0 && check_jdwp_ports()) {
             g_dump_detected = 1;
             crash_reverser();
@@ -360,8 +357,9 @@ static DWORD WINAPI protection_thread_win(LPVOID param) {
     return 0;
 }
 
-#ifdef __linux__
-static void *protection_thread_linux(void *param) {
+#else
+
+static void *protection_thread_unix(void *param) {
     (void)param;
     srand((unsigned int)time(NULL));
 
@@ -389,6 +387,7 @@ static void *protection_thread_linux(void *param) {
     }
     return NULL;
 }
+
 #endif
 
 /* ================================================================
@@ -410,7 +409,7 @@ JNIEXPORT jboolean JNICALL Java_antizalupaleak_protect_AntiDump_nativeInit(JNIEn
     if (hThread) CloseHandle(hThread);
 #else
     pthread_t tid;
-    pthread_create(&tid, NULL, protection_thread_linux, NULL);
+    pthread_create(&tid, NULL, protection_thread_unix, NULL);
     pthread_detach(tid);
 #endif
     return JNI_TRUE;
